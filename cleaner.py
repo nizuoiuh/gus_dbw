@@ -15,3 +15,12 @@ def szereg_czasowy_cpi_ogolem(data:pd.DataFrame)->pd.DataFrame:
     data.set_index('date',inplace=True)
     data.drop(['year','month'],axis=1,inplace=True)
     return data
+
+
+
+def combine_names_with_data(data:pd.DataFrame,names:pd.DataFrame)->pd.DataFrame:
+    positions = [s for s in data.columns.to_list() if 'pozycja' in s]
+    for position in positions:
+        data[position+'-nazwa']=data[position]
+        data[position+'-nazwa'] = data[position+'-nazwa'].map(names.set_index('id-pozycja')['nazwa-pozycja'].to_dict(),na_action='ignore')
+    return data 

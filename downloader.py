@@ -4,31 +4,23 @@ import urls
 import time
 import sys
 from utils import progress_bar
+from cleaner import combine_names_with_data
 
 
-def download_variables(page_size: int = 5000,
-                       params: dict = {},
-                       sleep: float = 0) -> pd.DataFrame:
-    return download(url=urls.zmienne,
+def download_variable_periods(page_size: int = 5000,
+                              params: dict = {},
+                              sleep: float = 0) -> pd.DataFrame:
+    return download(url=urls.variable_section_periods,
                     page_size=page_size,
                     params=params,
                     sleep=sleep)
 
 
-def download_periods(page_size: int = 5000,
-                     params: dict = {},
-                     sleep: float = 0) -> pd.DataFrame:
-    return download(url=urls.okresy,
-                    page_size=page_size,
-                    params=params,
-                    sleep=sleep)
-
-
-def download_data(
+def download_variable_data_section(
     id: int,
-    przekroj: int,
-    rok: int,
-    okres: int,
+    section: int,
+    year: int,
+    period: int,
     page_size: int = 5000,
     params: dict = {},
     sleep: float = 0,
@@ -38,14 +30,14 @@ def download_data(
     params = dict(
         {
             "id-zmienna": id,
-            "id-przekroj": przekroj,
-            "id-okres": okres,
-            "id-rok": rok
+            "id-przekroj": section,
+            "id-okres": period,
+            "id-rok": year
         },
         **params,
     )
     return download(
-        url=urls.data,
+        url=urls.variable_data_section,
         page_size=page_size,
         params=params,
         sleep=sleep,
@@ -54,35 +46,47 @@ def download_data(
     )
 
 
-def download_data_for_periods(
-    id: int,
-    przekroj: int,
-    lata: list[int],
-    okresy: list[int],
-    page_size: int = 5000,
-    params: dict = {},
-    sleep: float = 0,
-) -> pd.DataFrame:
+def download_variable_section_position(section: int,
+                                       page_size: int = 5000,
+                                       params: dict = {},
+                                       sleep: float = 0) -> pd.DataFrame:
+    df = download(urls.variable_section_position,
+                  page_size=page_size,
+                  params=dict({'id-przekroj': section}, **params),
+                  sleep=sleep,
+                  print_number_of_requests=True)
+    df.reset_index(drop=True, inplace=True)
+    return df
+
+
+def download_data_for_periods(id: int,
+                              section: int,
+                              years: list[int],
+                              periods: list[int],
+                              page_size: int = 5000,
+                              params: dict = {},
+                              sleep: float = 0,
+                              get_variable_names: bool = True) -> pd.DataFrame:
     df = pd.DataFrame()
-    liczba_okresow = len(lata) * len(okresy)
-    liczba_okresow_zapytanych = 0
-    print("Number of periods ", liczba_okresow)
+    periods_number = len(years) * len(periods)
+    number_periods_requested = 0
+    print("Number of periods ", periods_number)
     # setup bar for requests
     progress_bar(0, 1, suffix=" 0/1 1 week requests limit\n")
-    for rok in lata:
-        for okres in okresy:
-            liczba_okresow_zapytanych += 1
+    for year in years:
+        for period in periods:
+            number_periods_requested += 1
             # refresh one line above
-            progress_bar(liczba_okresow_zapytanych,
-                         liczba_okresow,
+            progress_bar(number_periods_requested,
+                         periods_number,
                          suffix="# periods\t")
             df = pd.concat([
                 df,
-                download_data(
+                download_variable_data_section(
                     id=id,
-                    przekroj=przekroj,
-                    rok=rok,
-                    okres=okres,
+                    section=section,
+                    year=year,
+                    period=period,
                     page_size=page_size,
                     params=params,
                     sleep=sleep,
@@ -92,6 +96,12 @@ def download_data_for_periods(
             ])
     df.reset_index(drop=True, inplace=True)
     print("")
+    if get_variable_names:
+        names = download_variable_section_position(section=section,
+                                                   page_size=page_size,
+                                                   params=params,
+                                                   sleep=sleep)
+        df = combine_names_with_data(data=df, names=names)
     return df
 
 
@@ -106,16 +116,17 @@ def download(
     page_number = 0
     page_count = 1
     df = pd.DataFrame()
-    if "X-ClientId" in params:  # zakladamy ze podany klucz jest poprawny i zwieksza limit :D
+    if "X-ClientId" in params:  # assume that if key parameter is passed limit is higher
         requests_limit = 50000
     else:
         requests_limit = 10000
     while page_number <= page_count:
         parameters = dict(
-            {
+            params, **{
                 "ile-na-stronie": page_size,
-                "numer-strony": page_number
-            }, **params)
+                "numer-strony": page_number,
+                "lang": "en"
+            })
         r = requests.get(url, params=parameters)
         if print_number_of_requests:
             if "X-Rate-Limit-Remaining" in r.headers:
@@ -130,17 +141,21 @@ def download(
         if sleep > 0:
             time.sleep(sleep)
         if r.status_code == 200:
-            page_count = r.json()["page-count"]
-            df = pd.concat([df, pd.DataFrame(r.json()["data"])])
+            if 'page-count' in r.json():
+                page_count = r.json()["page-count"]
+            if 'data' in r.json():
+                df = pd.concat([df, pd.DataFrame(r.json()["data"])])
+            else:
+                df = pd.concat([df, pd.DataFrame(r.json())])
             page_number += 1
         elif r.status_code == 404:
-            print("Error 404 - Nie znaleziono żądanego zasobu.")
+            print("\nError 404 - Nie znaleziono żądanego zasobu.")
             return pd.DataFrame()
         elif r.status_code == 401:
-            print("Error 401 - Niepoprawny klucz API lub klucz wygasł.")
+            print("\nError 401 - Niepoprawny klucz API lub klucz wygasł.")
             return pd.DataFrame()
         elif r.status_code == 400:
-            print("Error 400 - Serwer nie był w stanie przetworzyć żądania")
+            print("\nError 400 - Serwer nie był w stanie przetworzyć żądania")
             print(r.text)
             return pd.DataFrame()
         elif r.status_code == 429:
