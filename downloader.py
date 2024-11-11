@@ -116,7 +116,7 @@ def download(
     page_number = 0
     page_count = 1
     df = pd.DataFrame()
-    if "X-ClientId" in params:  # assume that if key parameter is passed limit is higher
+    if "X-ClientId" in params:  # assume that if key parameter is passed the limits are higher
         requests_limit = 50000
     else:
         requests_limit = 10000

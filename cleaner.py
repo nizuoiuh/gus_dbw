@@ -17,6 +17,18 @@ def szereg_czasowy_cpi_ogolem(data:pd.DataFrame)->pd.DataFrame:
     return data
 
 
+def create_time_series(data:pd.DataFrame)->pd.DataFrame:
+    data['id-okres']=data['id-okres'].replace(months)
+    col = data.columns
+    col = [column.replace('id-daty','year') for column in col]
+    col = [column.replace('id-okres','month') for column in col]
+    data.columns = col
+    data['date']=pd.to_datetime(data[['year','month']].assign(DAY=1),format='%Y%m%d')
+    positions = [s for s in data.columns.to_list() if 'nazwa' in s]
+    positions.append('id-sposob-prezentacji-miara')
+    return(data.pivot(index='date',columns=positions,values='wartosc'))
+
+
 
 def combine_names_with_data(data:pd.DataFrame,names:pd.DataFrame)->pd.DataFrame:
     positions = [s for s in data.columns.to_list() if 'pozycja' in s]
