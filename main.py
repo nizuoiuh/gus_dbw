@@ -16,7 +16,7 @@ def main() -> int:
                                    years=lata,
                                    periods=okresy,
                                    page_size=5000,
-                                   params={},
+                                   params={"lang": "en"},
                                    headers={},
                                    sleep=0.2,
                                    get_variable_names=True)

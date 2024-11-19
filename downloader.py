@@ -133,8 +133,7 @@ def download(
         parameters = dict(
             params, **{
                 "ile-na-stronie": page_size,
-                "numer-strony": page_number,
-                "lang": "en"
+                "numer-strony": page_number
             })
         r = requests.get(url, params=parameters, headers=headers)
         if print_number_of_requests:
