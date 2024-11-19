@@ -2,7 +2,8 @@ import sys
 
 # import requests
 from downloader import download_data_for_periods
-from cleaner import szereg_czasowy_cpi_ogolem,create_time_series
+from cleaner import create_time_series
+
 
 def main() -> int:
     okresy = []
@@ -16,12 +17,13 @@ def main() -> int:
                                    periods=okresy,
                                    page_size=5000,
                                    params={},
+                                   headers={},
                                    sleep=0.2,
                                    get_variable_names=True)
     print(df)
-    df= create_time_series(df)
+    df = create_time_series(df)
     print(df)
-    print(df.iloc[:,(df.columns.get_level_values(1)=='milk')])
+    print(df.iloc[:, (df.columns.get_level_values(1) == 'milk')])
     return 0
 
 

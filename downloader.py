@@ -9,10 +9,12 @@ from cleaner import combine_names_with_data
 
 def download_variable_periods(page_size: int = 5000,
                               params: dict = {},
+                              headers: dict = {},
                               sleep: float = 0) -> pd.DataFrame:
     return download(url=urls.variable_section_periods,
                     page_size=page_size,
                     params=params,
+                    headers=headers,
                     sleep=sleep)
 
 
@@ -23,6 +25,7 @@ def download_variable_data_section(
     period: int,
     page_size: int = 5000,
     params: dict = {},
+    headers: dict = {},
     sleep: float = 0,
     print_number_of_requests: bool = False,
     n_lines_up: int = 0,
@@ -40,6 +43,7 @@ def download_variable_data_section(
         url=urls.variable_data_section,
         page_size=page_size,
         params=params,
+        headers=headers,
         sleep=sleep,
         print_number_of_requests=print_number_of_requests,
         n_lines_up=n_lines_up,
@@ -49,10 +53,12 @@ def download_variable_data_section(
 def download_variable_section_position(section: int,
                                        page_size: int = 5000,
                                        params: dict = {},
+                                       headers: dict = {},
                                        sleep: float = 0) -> pd.DataFrame:
     df = download(urls.variable_section_position,
                   page_size=page_size,
                   params=dict({'id-przekroj': section}, **params),
+                  headers=headers,
                   sleep=sleep,
                   print_number_of_requests=True)
     df.reset_index(drop=True, inplace=True)
@@ -65,6 +71,7 @@ def download_data_for_periods(id: int,
                               periods: list[int],
                               page_size: int = 5000,
                               params: dict = {},
+                              headers: dict = {},
                               sleep: float = 0,
                               get_variable_names: bool = True) -> pd.DataFrame:
     df = pd.DataFrame()
@@ -89,6 +96,7 @@ def download_data_for_periods(id: int,
                     period=period,
                     page_size=page_size,
                     params=params,
+                    headers=headers,
                     sleep=sleep,
                     print_number_of_requests=True,
                     n_lines_up=1,
@@ -109,6 +117,7 @@ def download(
     url: str,
     page_size: int = 5000,
     params: dict = {},
+    headers: dict = {},
     sleep: float = 0,
     print_number_of_requests=False,
     n_lines_up: int = 0,
@@ -116,7 +125,7 @@ def download(
     page_number = 0
     page_count = 1
     df = pd.DataFrame()
-    if "X-ClientId" in params:  # assume that if key parameter is passed the limits are higher
+    if "X-ClientId" in headers:  # assume that if key parameter is passed the limits are higher
         requests_limit = 50000
     else:
         requests_limit = 10000
@@ -127,7 +136,7 @@ def download(
                 "numer-strony": page_number,
                 "lang": "en"
             })
-        r = requests.get(url, params=parameters)
+        r = requests.get(url, params=parameters, headers=headers)
         if print_number_of_requests:
             if "X-Rate-Limit-Remaining" in r.headers:
                 number_requests_left = int(r.headers["X-Rate-Limit-Remaining"])
